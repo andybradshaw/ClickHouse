@@ -15,6 +15,7 @@
 #include <IO/copyData.h>
 
 #include <Core/Types.h>
+#include <Disks/AccessCheckScope.h>
 #include <Common/Exception.h>
 #include <Common/ObjectStorageKey.h>
 #include <Common/ObjectStorageKeyGenerator.h>
@@ -277,6 +278,11 @@ public:
     virtual void shutdown() = 0;
 
     virtual void startup() = 0;
+
+    /// Hook invoked by `DiskObjectStorage::prepareAccessCheck` before the access check runs.
+    /// Default returns nullptr (no-op). Overridden by storage types that want to e.g. lower
+    /// the per-request retry budget so misconfigured endpoints fail fast at startup.
+    virtual AccessCheckScopePtr prepareAccessCheck() { return nullptr; }
 
     /// Apply new settings, in most cases reiniatilize client and some other staff
     struct ApplyNewSettingsOptions

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Disks/AccessCheckScope.h>
 #include <Disks/DiskObjectStorage/ObjectStorages/StoredObject.h>
 #include <Interpreters/Context_fwd.h>
 #include <Core/Defines.h>
@@ -476,6 +477,11 @@ public:
 
     /// Performs custom action on disk startup.
     virtual void startupImpl() {}
+
+    /// Hook called immediately before `checkAccess` during startup. Default no-op.
+    /// Object-storage disks override this to e.g. cap retry attempts so the access
+    /// check fails fast rather than exhausting the normal retry budget.
+    virtual AccessCheckScopePtr prepareAccessCheck() { return nullptr; }
 
     /// If the state can be changed under the hood and become outdated in memory, perform a reload if necessary.
     /// but don't do it more frequently than the specified parameter.

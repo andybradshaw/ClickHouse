@@ -58,6 +58,11 @@ ObjectStoragePtr DiskObjectStorage::getObjectStorage()
     return object_storages->takePointingTo(cluster->getLocalLocation());
 }
 
+AccessCheckScopePtr DiskObjectStorage::prepareAccessCheck()
+{
+    return getObjectStorage()->prepareAccessCheck();
+}
+
 DiskTransactionPtr DiskObjectStorage::createObjectStorageTransaction()
 {
     return std::make_shared<DiskObjectStorageTransaction>(cluster, metadata_storage, object_storages, blob_killer, wait_blob_removal);

@@ -45,6 +45,27 @@ namespace DB::S3
 
 namespace Model = Aws::S3::Model;
 
+/// RAII helper that lowers the S3 retry-attempts budget for work on the current thread.
+/// `Client::RetryStrategy` consults the active cap and uses the tighter of the configured
+/// `max_retries` and the cap. Intended for startup paths that need to fail fast (e.g. the
+/// disk access check) rather than burn through the default 500-attempt budget.
+class ScopedRetryAttemptsCap
+{
+public:
+    explicit ScopedRetryAttemptsCap(unsigned int max_retries);
+    ~ScopedRetryAttemptsCap();
+
+    ScopedRetryAttemptsCap(const ScopedRetryAttemptsCap &) = delete;
+    ScopedRetryAttemptsCap & operator=(const ScopedRetryAttemptsCap &) = delete;
+    ScopedRetryAttemptsCap(ScopedRetryAttemptsCap &&) = delete;
+    ScopedRetryAttemptsCap & operator=(ScopedRetryAttemptsCap &&) = delete;
+
+    static std::optional<unsigned int> currentCap();
+
+private:
+    std::optional<unsigned int> previous;
+};
+
 struct ClientCache
 {
     ClientCache() = default;

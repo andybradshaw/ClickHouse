@@ -142,7 +142,13 @@ void registerS3ObjectStorage(ObjectStorageFactory & factory)
         auto client = getClient(endpoint, *settings, context, /* for_disk_s3 */ true, name);
         auto key_generator = getKeyGenerator(uri, config, config_prefix);
 
-        return std::make_shared<S3ObjectStorage>(std::move(client), std::move(settings), uri, s3_capabilities, key_generator, name);
+        auto object_storage = std::make_shared<S3ObjectStorage>(std::move(client), std::move(settings), uri, s3_capabilities, key_generator, name);
+        /// Default 10 is roughly Azure's `sdk_max_retries` and is enough to ride out
+        /// transient blips without stalling startup for tens of minutes when the bucket
+        /// is unreachable. 0 disables the cap.
+        object_storage->setAccessCheckRetryAttempts(
+            static_cast<unsigned int>(config.getUInt64(config_prefix + ".access_check_retry_attempts", 10)));
+        return object_storage;
     };
 
     factory.registerObjectStorageType("s3", creator);

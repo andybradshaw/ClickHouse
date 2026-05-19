@@ -218,7 +218,10 @@ void IDisk::startup(bool skip_access_check)
                 getName());
         }
         else
+        {
+            auto access_check_scope = prepareAccessCheck();
             checkAccess();
+        }
     }
     catch (...)
     {

@@ -188,6 +188,10 @@ public:
 
     ObjectStoragePtr getObjectStorage() override;
 
+    /// Forwards to the underlying object storage so storage-specific access-check setup
+    /// (e.g. lowered S3 retry budget) can install thread-local state for the check.
+    AccessCheckScopePtr prepareAccessCheck() override;
+
     bool supportsCache() const override;
 
     /// Is object storage read only?

@@ -85,6 +85,31 @@ namespace ErrorCodes
 namespace S3
 {
 
+namespace
+{
+    thread_local std::optional<unsigned int> scoped_retry_attempts_cap;
+}
+
+ScopedRetryAttemptsCap::ScopedRetryAttemptsCap(unsigned int max_retries)
+    : previous(scoped_retry_attempts_cap)
+{
+    /// Take the tighter of an outer cap and the new one so nested scopes compose safely.
+    if (previous.has_value())
+        scoped_retry_attempts_cap = std::min(max_retries, *previous);
+    else
+        scoped_retry_attempts_cap = max_retries;
+}
+
+ScopedRetryAttemptsCap::~ScopedRetryAttemptsCap()
+{
+    scoped_retry_attempts_cap = previous;
+}
+
+std::optional<unsigned int> ScopedRetryAttemptsCap::currentCap()
+{
+    return scoped_retry_attempts_cap;
+}
+
 Client::RetryStrategy::RetryStrategy(const PocoHTTPClientConfiguration::RetryStrategy & config_)
     : config(config_)
     , log(getLogger("S3ClientRetryStrategy"))
@@ -99,7 +124,11 @@ bool Client::RetryStrategy::ShouldRetry(const Aws::Client::AWSError<Aws::Client:
     if (error.GetResponseCode() == Aws::Http::HttpResponseCode::MOVED_PERMANENTLY)
         return false;
 
-    if (attemptedRetries >= config.max_retries)
+    unsigned int effective_max_retries = config.max_retries;
+    if (auto cap = ScopedRetryAttemptsCap::currentCap())
+        effective_max_retries = std::min(effective_max_retries, *cap);
+
+    if (attemptedRetries >= effective_max_retries)
         return false;
 
     if (CurrentThread::isInitialized() && CurrentThread::get().isQueryCanceled())
@@ -144,7 +173,10 @@ long Client::RetryStrategy::CalculateDelayBeforeNextRetry(const Aws::Client::AWS
 /// NOLINTNEXTLINE(google-runtime-int)
 long Client::RetryStrategy::GetMaxAttempts() const
 {
-    return config.max_retries + 1;
+    unsigned int effective_max_retries = config.max_retries;
+    if (auto cap = ScopedRetryAttemptsCap::currentCap())
+        effective_max_retries = std::min(effective_max_retries, *cap);
+    return effective_max_retries + 1;
 }
 
 void Client::RetryStrategy::RequestBookkeeping(const Aws::Client::HttpResponseOutcome & httpResponseOutcome)
@@ -153,7 +185,7 @@ void Client::RetryStrategy::RequestBookkeeping(const Aws::Client::HttpResponseOu
     {
         const auto & error = httpResponseOutcome.GetError();
         if (error.ShouldRetry())
-            LOG_TRACE(
+            LOG_WARNING(
                 log,
                 "Attempt {}/{} failed with retryable error: {}, {}",
                 httpResponseOutcome.GetRetryCount() + 1,
