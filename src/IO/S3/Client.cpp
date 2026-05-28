@@ -704,6 +704,12 @@ Client::doRequest(RequestType & request, RequestFn request_fn) const
     if (auto uri = getURIForBucket(bucket); uri.has_value())
         request.overrideURI(std::move(*uri));
 
+    /// If the request carries a per-request retry cap (e.g. installed by the disk
+    /// access check via `WriteSettings::s3_max_retries`), make it visible to the
+    /// AWS SDK retry strategy for the duration of the synchronous SDK call below.
+    std::optional<ScopedRetryAttemptsCap> request_retry_cap;
+    if (auto cap = request.getMaxRetriesOverride())
+        request_retry_cap.emplace(*cap);
 
     bool found_new_endpoint = false;
     // if we found correct endpoint after 301 responses, update the cache for future requests
@@ -797,7 +803,13 @@ Client::doRequestWithRetryNetworkErrors(RequestType & request, RequestFn request
     auto with_retries = [this, request_fn_ = std::move(request_fn)] (RequestType & request_)
     {
         chassert(client_configuration.retryStrategy);
-        const Int64 max_attempts = client_configuration.retry_strategy.max_retries + 1;
+        /// Honour any per-request cap: the SDK call below also sees the cap via
+        /// `ScopedRetryAttemptsCap` installed in `doRequest`, so without trimming
+        /// the outer loop too we could exceed the requested budget across rounds.
+        unsigned int effective_max_retries = client_configuration.retry_strategy.max_retries;
+        if (auto cap = request_.getMaxRetriesOverride())
+            effective_max_retries = std::min(effective_max_retries, *cap);
+        const Int64 max_attempts = effective_max_retries + 1;
 
         Int64 attempt_no = 1;
         std::invoke_result_t<RequestFn, RequestType &> outcome;

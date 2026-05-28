@@ -58,9 +58,9 @@ ObjectStoragePtr DiskObjectStorage::getObjectStorage()
     return object_storages->takePointingTo(cluster->getLocalLocation());
 }
 
-AccessCheckScopePtr DiskObjectStorage::prepareAccessCheck()
+std::optional<unsigned int> DiskObjectStorage::accessCheckMaxRetries() const
 {
-    return getObjectStorage()->prepareAccessCheck();
+    return object_storages->takePointingTo(cluster->getLocalLocation())->getAccessCheckMaxRetries();
 }
 
 DiskTransactionPtr DiskObjectStorage::createObjectStorageTransaction()

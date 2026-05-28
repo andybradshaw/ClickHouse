@@ -134,9 +134,17 @@ public:
         RequestChecksum::setChecksumAlgorithm(*this);
     }
 
+    /// Per-request cap on the SDK retry budget. When set, `S3::Client::doRequest`
+    /// installs a `ScopedRetryAttemptsCap` around the SDK call so the retry strategy
+    /// honours the lower of this value and the configured `max_retries`. Used by the
+    /// disk access check to fail fast on misconfigured endpoints.
+    void setMaxRetriesOverride(unsigned int value) const { max_retries_override = value; }
+    std::optional<unsigned int> getMaxRetriesOverride() const { return max_retries_override; }
+
 protected:
     mutable std::string region_override;
     mutable std::optional<S3::URI> uri_override;
+    mutable std::optional<unsigned int> max_retries_override;
     mutable ApiMode api_mode{ApiMode::AWS};
     mutable bool checksum = true;
     bool is_s3express_bucket = false;

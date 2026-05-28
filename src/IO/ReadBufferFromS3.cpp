@@ -487,6 +487,9 @@ Aws::S3::Model::GetObjectResult ReadBufferFromS3::sendRequest(size_t attempt, si
 
     S3::setClickhouseAttemptNumber(req, attempt);
 
+    if (read_settings.s3_max_retries.has_value())
+        req.setMaxRetriesOverride(*read_settings.s3_max_retries);
+
     if (range_end_incl)
     {
         req.SetRange(fmt::format("bytes={}-{}", range_begin, *range_end_incl));

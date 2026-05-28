@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <Common/IThrottler.h>
 #include <Common/Scheduler/ResourceLink.h>
 #include <IO/DistributedCacheSettings.h>
@@ -32,6 +34,11 @@ struct WriteSettings
     DistributedCacheSettings distributed_cache_settings;
 
     bool is_initial_access_check = false;
+
+    /// Per-request override on the S3 retry budget. When set, the resulting
+    /// `WriteBufferFromS3` stamps each request so `S3::Client` caps retries via
+    /// `ScopedRetryAttemptsCap`. Used by `IDisk::checkAccess` to fail fast.
+    std::optional<unsigned int> s3_max_retries;
 
     std::string object_storage_write_if_none_match; /// Supported only for S3-like object storages.
     std::string object_storage_write_if_match;     /// Supported only for S3-like object storages.

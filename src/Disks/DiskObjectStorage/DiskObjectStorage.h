@@ -188,9 +188,9 @@ public:
 
     ObjectStoragePtr getObjectStorage() override;
 
-    /// Forwards to the underlying object storage so storage-specific access-check setup
-    /// (e.g. lowered S3 retry budget) can install thread-local state for the check.
-    AccessCheckScopePtr prepareAccessCheck() override;
+    /// Forwards to the underlying object storage so storage-specific access-check tuning
+    /// (e.g. a lower S3 retry budget) is applied during `IDisk::checkAccess`.
+    std::optional<unsigned int> accessCheckMaxRetries() const override;
 
     bool supportsCache() const override;
 

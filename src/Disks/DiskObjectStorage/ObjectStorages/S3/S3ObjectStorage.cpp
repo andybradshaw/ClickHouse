@@ -639,24 +639,6 @@ void S3ObjectStorage::startup()
     const_cast<S3::Client &>(*client.get()).EnableRequestProcessing();
 }
 
-namespace
-{
-    /// Owns a `ScopedRetryAttemptsCap` and erases the S3 type behind the storage-agnostic
-    /// `AccessCheckScope` interface so `IDisk` doesn't have to know about S3.
-    struct S3AccessCheckScope : AccessCheckScope
-    {
-        explicit S3AccessCheckScope(unsigned int max_retries) : cap(max_retries) {}
-        S3::ScopedRetryAttemptsCap cap;
-    };
-}
-
-AccessCheckScopePtr S3ObjectStorage::prepareAccessCheck()
-{
-    if (access_check_retry_attempts == 0)
-        return nullptr;
-    return std::make_unique<S3AccessCheckScope>(access_check_retry_attempts);
-}
-
 void S3ObjectStorage::applyNewSettings(
     const Poco::Util::AbstractConfiguration & config,
     const std::string & config_prefix,

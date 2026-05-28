@@ -15,7 +15,6 @@
 #include <IO/copyData.h>
 
 #include <Core/Types.h>
-#include <Disks/AccessCheckScope.h>
 #include <Common/Exception.h>
 #include <Common/ObjectStorageKey.h>
 #include <Common/ObjectStorageKeyGenerator.h>
@@ -279,10 +278,10 @@ public:
 
     virtual void startup() = 0;
 
-    /// Hook invoked by `DiskObjectStorage::prepareAccessCheck` before the access check runs.
-    /// Default returns nullptr (no-op). Overridden by storage types that want to e.g. lower
-    /// the per-request retry budget so misconfigured endpoints fail fast at startup.
-    virtual AccessCheckScopePtr prepareAccessCheck() { return nullptr; }
+    /// Per-request cap on the SDK retry budget for the disk access check. Default is no
+    /// override. Overridden by storage types (e.g. S3) so a misconfigured backend fails
+    /// the check in seconds instead of exhausting the regular budget.
+    virtual std::optional<unsigned int> getAccessCheckMaxRetries() const { return std::nullopt; }
 
     /// Apply new settings, in most cases reiniatilize client and some other staff
     struct ApplyNewSettingsOptions

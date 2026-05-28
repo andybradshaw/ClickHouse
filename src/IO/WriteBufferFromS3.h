@@ -78,6 +78,15 @@ private:
     S3::PutObjectRequest getPutRequest(PartData & data);
     void makeSinglepartUpload(PartData && data);
 
+    /// Stamp `write_settings.s3_max_retries` (if any) onto an outgoing S3 request so
+    /// `S3::Client::doRequest` caps the SDK retry budget for the call.
+    template <typename Req>
+    void applyRetryOverride(Req & req) const
+    {
+        if (write_settings.s3_max_retries.has_value())
+            req.setMaxRetriesOverride(*write_settings.s3_max_retries);
+    }
+
     /// Returns true if not a single byte was written to the buffer
     bool isEmpty() const { return total_size == 0 && count() == 0 && hidden_size == 0 && offset() == 0; }
 

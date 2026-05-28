@@ -131,10 +131,16 @@ public:
 
     void startup() override;
 
-    /// Lower the S3 retry budget while the disk access check runs so an unreachable
-    /// or misconfigured bucket fails the check in seconds instead of stalling startup.
-    /// Returns nullptr (no scoping) when `access_check_retry_attempts == 0`.
-    AccessCheckScopePtr prepareAccessCheck() override;
+    /// Returns the configured per-request retry cap for the disk access check.
+    /// `IDisk::checkAccessImpl` stamps this on `Read/WriteSettings` so an unreachable
+    /// or misconfigured bucket fails the check in seconds rather than exhausting the
+    /// SDK's default budget. `std::nullopt` (or 0) disables the cap.
+    std::optional<unsigned int> getAccessCheckMaxRetries() const override
+    {
+        if (access_check_retry_attempts == 0)
+            return std::nullopt;
+        return access_check_retry_attempts;
+    }
 
     void setAccessCheckRetryAttempts(unsigned int attempts) { access_check_retry_attempts = attempts; }
 
@@ -178,8 +184,8 @@ private:
     const bool for_disk_s3;
     S3CredentialsRefreshCallback credentials_refresh_callback;
 
-    /// Cap installed by `prepareAccessCheck`. 0 means no cap. Read once at startup,
-    /// no synchronization needed.
+    /// Configured cap returned by `getAccessCheckMaxRetries`. 0 means no cap.
+    /// Read once at startup, no synchronization needed.
     unsigned int access_check_retry_attempts = 0;
 };
 

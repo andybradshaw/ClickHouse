@@ -420,6 +420,7 @@ void WriteBufferFromS3::createMultipartUpload()
         req.SetMetadata(object_metadata.value());
 
     client_ptr->setKMSHeaders(req);
+    applyRetryOverride(req);
 
     ProfileEvents::increment(ProfileEvents::S3CreateMultipartUpload);
     if (client_ptr->isClientForDisk())
@@ -469,6 +470,7 @@ void WriteBufferFromS3::abortMultipartUpload()
     req.SetBucket(bucket);
     req.SetKey(key);
     req.SetUploadId(multipart_upload_id);
+    applyRetryOverride(req);
 
     ProfileEvents::increment(ProfileEvents::S3AbortMultipartUpload);
     if (client_ptr->isClientForDisk())
@@ -518,6 +520,7 @@ S3::UploadPartRequest WriteBufferFromS3::getUploadRequest(size_t part_number, Pa
         multipart_checksums.push_back(std::move(checksum));
     }
 
+    applyRetryOverride(req);
     return req;
 }
 
@@ -653,6 +656,7 @@ void WriteBufferFromS3::completeMultipartUpload()
     }
 
     req.SetMultipartUpload(multipart_upload);
+    applyRetryOverride(req);
 
     size_t max_retry = std::max<UInt64>(request_settings[S3RequestSetting::max_unexpected_write_error_retries].value, 1UL);
     for (size_t i = 0; i < max_retry; ++i)
@@ -726,6 +730,7 @@ S3::PutObjectRequest WriteBufferFromS3::getPutRequest(PartData & data)
     req.SetContentType("binary/octet-stream");
 
     client_ptr->setKMSHeaders(req);
+    applyRetryOverride(req);
 
     return req;
 }

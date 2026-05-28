@@ -89,6 +89,11 @@ struct ReadSettings
     bool http_skip_not_found_url_for_globs = true;
     bool http_make_head_request = true;
 
+    /// Per-request override on the S3 retry budget. When set, the resulting
+    /// `ReadBufferFromS3` stamps each request so `S3::Client` caps retries via
+    /// `ScopedRetryAttemptsCap`. Used by `IDisk::checkAccess` to fail fast.
+    std::optional<unsigned int> s3_max_retries;
+
     bool read_through_distributed_cache = false;
     DistributedCacheSettings distributed_cache_settings;
     std::optional<FileCacheOriginInfo> filecache_origin_info;

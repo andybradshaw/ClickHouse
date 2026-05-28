@@ -218,10 +218,7 @@ void IDisk::startup(bool skip_access_check)
                 getName());
         }
         else
-        {
-            auto access_check_scope = prepareAccessCheck();
             checkAccess();
-        }
     }
     catch (...)
     {
@@ -246,9 +243,17 @@ void IDisk::checkAccessImpl(const String & path)
 try
 {
     const std::string_view payload("test", 4);
-    const auto read_settings = getReadSettings();
+    auto read_settings = getReadSettings();
     auto write_settings = getWriteSettings();
     write_settings.is_initial_access_check = true;
+
+    /// Cap the retry budget for both the write and the reads that follow so an
+    /// unreachable object-storage backend fails the check in seconds instead of
+    /// exhausting the SDK's default 500-attempt budget. Per-storage disks opt in
+    /// by overriding `accessCheckMaxRetries`.
+    auto access_check_max_retries = accessCheckMaxRetries();
+    read_settings.s3_max_retries = access_check_max_retries;
+    write_settings.s3_max_retries = access_check_max_retries;
 
     /// write
     {
